@@ -7,8 +7,8 @@ import * as functions from "firebase-functions";
  */
 export enum ChangeType {
     CREATE,
-    DELETE,
     UPDATE,
+    DELETE,
 }
 
 
