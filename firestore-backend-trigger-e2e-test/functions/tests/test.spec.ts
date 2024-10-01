@@ -15,8 +15,6 @@ if (admin.apps.length === 0) {
     });
 }
 
-
-
 // Run test:
 //
 // ./node_modules/.bin/mocha --require=ts-node/register --watch --watch-files "tests/*.ts,src/**/*.ts" tests/test.spec.ts
