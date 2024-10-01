@@ -7,16 +7,16 @@ import * as functions from "firebase-functions";
  */
 export enum ChangeType {
     CREATE,
-    UPDATE,
     DELETE,
+    UPDATE,
 }
 
 
 /**
  * Gets the type of change that was made to the document.
- * 
- * @param change the change object from the onWrite function
- * @returns the type of change that was made
+ *
+ * @param {*} change the change object from the onWrite function
+ * @return {ChangeType} the type of change that was made
  */
 export const getChangeType = (change: functions.Change<DocumentSnapshot>): ChangeType => {
     if (!change.after.exists) {

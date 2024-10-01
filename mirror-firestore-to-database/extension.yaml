@@ -3,26 +3,35 @@
 
 # Identifier for your extension
 # TODO: Replace this with an descriptive name for your extension.
-name: greet-the-world  
-version: 0.0.1  # Follow semver versioning
-specVersion: v1beta  # Version of the Firebase Extensions specification
+name: mirror-firestore-to-database
+version: 0.0.1 # Follow semver versioning
+specVersion: v1beta # Version of the Firebase Extensions specification
 
 # Friendly display name for your extension (~3-5 words)
-displayName: Greet the world
+displayName: Mirror Firestore to Database
 
 # Brief description of the task your extension performs (~1 sentence)
 description: >-
-  Sends the world a greeting.
+  Mirror data from Firestore to Realtime Database.
 
-license: Apache-2.0  # https://spdx.org/licenses/
+license: Apache-2.0 # https://spdx.org/licenses/
 
 # Public URL for the source code of your extension.
 # TODO:  Replace this with your GitHub repo.
-sourceUrl: https://github.com/ORG_OR_USER/REPO_NAME
+sourceUrl: https://github.com/thruthesky/extensions/tree/main/mirror-firestore-to-database
 
 # Specify whether a paid-tier billing plan is required to use your extension.
 # Learn more in the docs: https://firebase.google.com/docs/extensions/reference/extension-yaml#billing-required-field
 billingRequired: true
+
+roles:
+  - role: datastore.owner
+    reason: Allows the extension to mirror data from Firestore to Database.
+  - role: firebasedatabase.admin
+    reason: Allows the extension to write data to Realtime Database.
+  # - role: firebaseauth.viewer
+  #   reason: >-
+  #     Allows the extension to read the list of existing users in Firebase Auth.
 
 # In an `apis` field, list any Google APIs (like Cloud Translation, BigQuery, etc.)
 # required for your extension to operate.
@@ -37,25 +46,102 @@ billingRequired: true
 # Learn more in the docs:
 # https://firebase.google.com/docs/extensions/reference/extension-yaml#resources-field
 resources:
-  - name: greetTheWorld
+  - name: mirrorFirestoreToDatabase
     type: firebaseextensions.v1beta.function
     description: >-
       HTTP request-triggered function that responds with a specified greeting message
     properties:
-      # httpsTrigger is used for an HTTP triggered function.
-      httpsTrigger: {}
-      runtime: "nodejs16"
+      location: ${LOCATION}
+      runtime: "nodejs18"
+      eventTrigger:
+        eventType: providers/cloud.firestore/eventTypes/document.write
+        resource: projects/${PROJECT_ID}/databases/(default)/documents/${COLLECTION}/{documentId}
 
 # In the `params` field, set up your extension's user-configured parameters.
 # Learn more in the docs:
 # https://firebase.google.com/docs/extensions/reference/extension-yaml#params-field
 params:
-  - param: GREETING
-    label: Greeting for the world
+  - param: COLLECTION
+    label: Firestore collection name
     description: >-
-      What do you want to say to the world?
-      For example, Hello world? or What's up, world?
+      Firestore collection name to mirror into realtime database.
+      For example, users.
     type: string
-    default: Hello
+    default:
     required: true
     immutable: false
+  - param: FIELDS
+    label: Fields to mirror
+    description: >-
+      Comma separated list of fields to mirror from Firestore to Realtime Database.
+      For example, name, name_lower_case, age, gender.
+      If you want to mirror all fields, use "*".
+      By adding "_lower_case" to a field name, you can mirror the field in lower case.
+    type: string
+    default:
+    required: true
+    immutable: false
+  - param: DATABASE_PATH
+    label: Database path
+    description: >-
+      Realtime Database path to save fields from Firestore collection.
+      For example, abc/def.
+    type: string
+    default:
+    required: true
+    immutable: false
+  - param: LOCATION
+    label: Cloud Functions location
+    description: >-
+      Where do you want to deploy the functions created for this extension?
+      For help selecting a location, refer to the [location selection
+      guide](https://firebase.google.com/docs/functions/locations).
+    type: select
+    options:
+      - label: Iowa (us-central1)
+        value: us-central1
+      - label: South Carolina (us-east1)
+        value: us-east1
+      - label: Northern Virginia (us-east4)
+        value: us-east4
+      - label: Los Angeles (us-west2)
+        value: us-west2
+      - label: Salt Lake City (us-west3)
+        value: us-west3
+      - label: Las Vegas (us-west4)
+        value: us-west4
+      - label: Warsaw (europe-central2)
+        value: europe-central2
+      - label: Belgium (europe-west1)
+        value: europe-west1
+      - label: London (europe-west2)
+        value: europe-west2
+      - label: Frankfurt (europe-west3)
+        value: europe-west3
+      - label: Zurich (europe-west6)
+        value: europe-west6
+      - label: Hong Kong (asia-east2)
+        value: asia-east2
+      - label: Tokyo (asia-northeast1)
+        value: asia-northeast1
+      - label: Osaka (asia-northeast2)
+        value: asia-northeast2
+      - label: Seoul (asia-northeast3)
+        value: asia-northeast3
+      - label: Mumbai (asia-south1)
+        value: asia-south1
+      - label: Jakarta (asia-southeast2)
+        value: asia-southeast2
+      - label: Montreal (northamerica-northeast1)
+        value: northamerica-northeast1
+      - label: Sao Paulo (southamerica-east1)
+        value: southamerica-east1
+      - label: Singapore (asia-southeast1)
+        value: asia-southeast1
+      - label: Sydney (australia-southeast1)
+        value: australia-southeast1
+      - label: Taiwan (asia-east1)
+        value: asia-east1
+    required: true
+    default: us-central1
+    immutable: true

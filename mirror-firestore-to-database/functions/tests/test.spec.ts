@@ -2,71 +2,89 @@ import * as admin from "firebase-admin";
 import * as test from "firebase-functions-test";
 import { expect } from "chai";
 import { describe } from "mocha";
-
-import { mirrorFirestoreToDatabase } from "../src/index";
+import { mirrorFirestoreToDatabase } from "../src/mirror-firestore-to-database.function";
 import { DataSnapshot } from "firebase-admin/database";
 import { DocumentSnapshotOptions } from "firebase-functions-test/lib/providers/firestore";
 
+import { initializeApp } from "firebase-admin/app";
 
+/// Initialize Firebase only once for the testing suite.
+if (admin.apps.length === 0) {
+    initializeApp({
+        databaseURL: "http://127.0.0.1:9000/?ns=withcenter-test-4"
+    });
+}
 
-const uid = 'test-uid';
-
-describe('mirrorDatabaseToFirestore', () => {
+// Run test:
+//
+// ./node_modules/.bin/mocha --require=ts-node/register --watch --watch-files "tests/*.ts,src/**/*.ts" tests/test.spec.ts
+describe('Mirror Firestore To Database: CREATE, UPDATE, DELETE TEST', () => {
 
     it('Create node and update, then check mirror, then delete, then check mirror', async () => {
-        const path = 'tmp/id-2';
-        await admin.database().ref('tmp-mirrored').child('id-2').set(null);
-        // prepare variables
-        const options = {
+        // Paths
+        const collectionName = 'tmp';
+        const documentId = 'id-2';
+        const path = `${collectionName}/${documentId}`;
+        const databasePath = 'tmp-mirrored';
+
+        // Delete existing data for testing
+        await admin.database().ref(databasePath).child(documentId).set(null);
+
+        // Prepare variables
+        const options: DocumentSnapshotOptions = {
             eventId: 'temp-event-id',
-            createdAt: new Date().getTime().toString(),
-            auth: { uid },
+            auth: { uid: 'uid-a' },
             authType: 'USER', // only for realtime database functions
         } as DocumentSnapshotOptions;
 
-        // wrap the function
+        // Wrap the cloud function
         const wrapped = test().wrap(mirrorFirestoreToDatabase);
 
-
-
+        // create at time value for testing
         const createdAt = new Date().getTime();
 
-        // create data
+
+
+        // Test before the document is created.
+        const notExistingSnapshot: DataSnapshot = await admin.database().ref(databasePath).child(documentId).get();
+        expect(notExistingSnapshot.exists()).equal(false);
+
+        // Create document. If the data is null, then the data is considered not existing.
         await wrapped(
             test().makeChange(
-                test().firestore.makeDocumentSnapshot({}, path, options), // data not exist before.
+                test().firestore.makeDocumentSnapshot(null as any, path, options), // data not exist before.
                 test().firestore.makeDocumentSnapshot({ createdAt }, path, options), // data exist after. So, it's a create operation.
             ),
         );
 
-        const snapshotGot: DataSnapshot = await admin.database().ref('tmp-mirrored').child('id-2').get();
-        expect(snapshotGot.val()).to.deep.equal({ createdAt });
+        // Test if the document is created.
+        const createdSnapshot: DataSnapshot = await admin.database().ref(databasePath).child(documentId).get();
+        expect(createdSnapshot.val()).to.deep.equal({ createdAt });
 
-        // // 데이터 수정
-        // const input2 = { a: 'apple', "b": 2 };
-        // await wrapped(
-        //     test().makeChange(
-        //         documentSnapshot(true, path), // 실행 전 데이터 존재 함!!
-        //         documentSnapshot(input2, path), // 실행 후에도 데이터 존재!!
-        //     ),
-        //     options
-        // );
+        // Update data
+        await wrapped(
+            test().makeChange(
+                test().firestore.makeDocumentSnapshot({ createdAt } as any, path, options), // data not exist before.
+                test().firestore.makeDocumentSnapshot({ createdAt, 're': 'updated' }, path, options), // data exist after. So, it's a create operation.
+            ),
+        );
 
-        // const snapshotGot2 = await admin.firestore().collection('mirror-to').doc('id-2').get();
-        // const data2 = snapshotGot2.data();
-        // expect(data2).to.deep.equal(input2);
+        // Check if updated
+        const updatedSnapshot: DataSnapshot = await admin.database().ref(databasePath).child(documentId).get();
+        expect(updatedSnapshot.val().createdAt).to.deep.equal(createdAt);
+        expect(updatedSnapshot.val().re).to.deep.equal('updated');
 
-        // // 데이터 삭제
-        // await wrapped(
-        //     test().makeChange(
-        //         documentSnapshot(0, path), // 실행 전 데이터 존재 함!!
-        //         documentSnapshot(null, path), // 실행 후에도 데이터 존재 안 함!!
-        //     ),
-        //     options
-        // );
-        // const snapshotGot3 = await admin.firestore().collection('mirror-to').doc('id-2').get();
-        // const data3 = snapshotGot3.data();
-        // expect(data3).to.be.undefined;
+        // Delete data
+        await wrapped(
+            test().makeChange(
+                test().firestore.makeDocumentSnapshot({ createdAt, 're': 'updated' } as any, path, options), // data not exist before.
+                test().firestore.makeDocumentSnapshot(null as any, path, options), // data exist after. So, it's a create operation.
+            ),
+        );
+
+        // Check if the document is deleted.
+        const deletedSnapshot: DataSnapshot = await admin.database().ref(databasePath).child(documentId).get();
+        expect(deletedSnapshot.exists()).equal(false);
     });
 
 });
